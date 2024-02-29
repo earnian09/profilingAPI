@@ -231,7 +231,7 @@ app.get('/getAllEmployees/:department', (req, res) => {
 
 // Login
 app.post('/login', (req, res) => {
-    res.set('Access-Control-Allow-Origin', 'https://employeeprofilinghub.com/');
+    res.set('Access-Control-Allow-Origin', 'http://localhost:8080');
     const emp_ID = req.body.emp_ID;
     const password = req.body.password;
 
