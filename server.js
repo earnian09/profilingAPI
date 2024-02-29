@@ -231,7 +231,7 @@ app.get('/getAllEmployees/:department', (req, res) => {
 
 // Login
 app.post('/login', (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', 'https://employeeprofilinghub.com/');
+    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:8080');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
 
     // Request headers you wish to allow
