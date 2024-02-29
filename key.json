@@ -1,0 +1,14 @@
+{
+    "type": "service_account",
+    "project_id": "profilinghub-certificates",
+    "private_key_id": "03d37afd63780f8953fbdecb14011b0dbf5d9f25",
+    "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQChOxXlPuVYiH1U\nhZtdR6s2xfIGcZ1FIOQThkvxTvgcX7FgpBKN8In6IWlWSqydJdvzmsmOWmmsAf4D\nu1LFoaGYAYbiDlx/XiNfeZnZqvgn2nMJ2RviztwYr2XX+suucb+/ww/zmGbuRLUY\nUCO5Kn+qCulnTxx61dE9XDo/QJzNjnSucSlLci9pfyr7qmq0MKaqE6Wt7hmk1K76\nR24MWXvmzua8tFrvcqwN/ZXvylaZM45H38WyBS04eJZ96ALHRsItrID9SRQTePT9\nXvgcVFQetU0xZ3RWVw0o5R8nc9gD916o65Gs8GhdQirqAArF7HLmDzzFe7CDpyh8\n01SwO6YzAgMBAAECggEAI1AfoZA/Bz8NxD9nIe0akOqV8ddcjNGBYs1dQML9EKnc\n3b/R2IjAj6pVufKtD9ZE8HwMfUNMNcJR8ltK68JU9EgRVN20YKkrsjOeANCzfXcZ\nDyUgOHL6PeXctotVpSWAy+1bRw0wLiuaRnL3AA1Q3Nt694eaQ0UliPz0PPpX3aVm\noOoxV6eEhDrgXxIxJYUWfs/vmWpuobMIn9NT2xHhTNiATZc8DXBjGdJrmrv+pEbP\nOh1Tas3ySVKlK108QfLMVWqhlChJ2Wst5idHGeNbql8pb/bQKyxFQwcG1WXf8f1q\nDE7CCupZI4c8tY5zWujBvY2t+rlQJ5b8nTwS/LVnQQKBgQDbohrSSDBatByhMpr/\nomYIL8QvWzBJ7L5lN5UeyDnuZk7XaRYB82C5XBnO5+xGQ3CWc5/FiBoo3LQJHBVr\ngpyr9vThqw0kaz/i4P0RhnSdMwrTBq4Es6/8wVC+8QJXP7cdVBu41vt9q7xQr6IU\nbx0Q32WgXO5W+fPEjUm61FgCQwKBgQC77WWsVj6nPAMu1EAabQemOEdJWwQmm46z\n3Kouw5xajY8OZchWQwJHjIRDyDRcBVYvWZvAPd5e3XIKOabLpUY1B0J3STZM3eMe\nkkjo4hdnD7aJcvNcaOVV1HkyufrXn87lmCQ8HByUjcZ7OdjT0ourrZIKsPlOQA78\nazogGt/lUQKBgFPZY1v8a1l1gaiY5UvK+CEP+1oI+jp+w4Fo4ulJj7RQIrFiUSCV\nhcu+OawgJrf8bzNBGTIUb8hB2gnQSu0shBuywHKXFwFcYJuBQZw7NLH/FpbR6gWp\ng/p+4xDCeh5NGN99iMfca07jDZXQN5SNhw81+lpqoCNccZAMUKWfA6p5AoGAG6d3\nisC2P43JOh7pv/nDYmZttxG5rqS9fyI9uNv4Kising/ER01dDIJVBFR1wATZBea9\n0LBKBNO5cF/Dd7w+dJc45KzVXMJaJamJKRv8LaJWTiuoPDUDann1y80qaIiPvaGB\n04affgzO5FtC2QjmnMDR+NjKFwW+Ls7oosjRocECgYBGf9PYtCs2jkdQpjBNcAFm\nPMC1dAPQolrOFJx3emdpL3c4feu5qEuU7U1DWGz6147F6CmJHoATWYnKZGOERsm8\nNvBcmJXj+2U/Zr8h/ehw/iaSIcCtxGryVeGpP9GZQSGN01N1AyVvTtEB+oFOc8xM\niE0nTsP0ET2DFX2R24I98Q==\n-----END PRIVATE KEY-----\n",
+    "client_email": "certificate-service@profilinghub-certificates.iam.gserviceaccount.com",
+    "client_id": "103649088642276321319",
+    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/certificate-service%40profilinghub-certificates.iam.gserviceaccount.com",
+    "universe_domain": "googleapis.com"
+  }
+  
