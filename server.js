@@ -230,8 +230,8 @@ app.get('/getAllEmployees/:department', (req, res) => {
 });
 
 // Login
-app.post('/login', (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:8080');
+app.post('/login', (req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
 
     // Request headers you wish to allow
