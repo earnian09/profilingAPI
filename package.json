@@ -2,11 +2,9 @@
   "name": "profiling",
   "version": "0.0.0",
   "scripts": {
-    "ng": "ng",
-    "start": "ng serve",
-    "build": "ng build",
-    "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "index.js",
+    "dev": "nodemon index.js"
   },
   "private": true,
   "dependencies": {
