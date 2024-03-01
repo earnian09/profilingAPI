@@ -43,7 +43,7 @@ db.connect((err) => { // Function that connects to the database
 });
 
 // Read
-app.post('/read', (req, res) => {
+app.post('/read', (req, res, next) => {
 
     const emp_ID = req.body.emp_ID;
     const page = req.body.page;
@@ -492,7 +492,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage }).single('file'); // Change to single file upload
 
 // Uploading files to Google Drive
-app.post('/upload', async (req, res) => {
+app.post('/upload', async (req, res, next) => {
     try {
         upload(req, res, async function (err) {
             if (err instanceof multer.MulterError) {
