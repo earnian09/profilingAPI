@@ -12,19 +12,20 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+// Security
 const cors = require('cors');
+const bcrypt = require('bcrypt');
+const saltRounds = 10; 
+const crypto = require('crypto'); 
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = crypto.randomBytes(64).toString('hex');
+
+
+// Middleware
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
 
 app.use(cors())
-
-
-// app.use(cors({
-//     origin: 'https://eployeeprofilinghub.com', // use your actual domain name (or localhost), using * is not recommended
-//     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'],
-//     allowedHeaders: ['Content-Type', 'Origin', 'X-Requested-With', 'Accept', 'x-client-key', 'x-client-token', 'x-client-secret', 'Authorization', 'Access-Control-Allow-Origin'],
-//     credentials: true
-// }))
-// app.options('*, cors()')
-
 
 const db = mysql.createConnection({
     host: 'profilingdatabase.c70w002qw0l1.us-east-1.rds.amazonaws.com',
@@ -42,8 +43,31 @@ db.connect((err) => { // Function that connects to the database
     console.log('Connected to MySQL database');
 });
 
+const verifyToken = (req, res, next) => {
+    const token = req.headers.authorization;
+
+    if (!token) {
+        return res.status(403).send({ auth: false, message: 'No token provided.' });
+    }
+
+    jwt.verify(token.replace('Bearer ', ''), JWT_SECRET, function (err, decoded) {
+        if (err) {
+            // Check if the error is because the token has expired
+            if (err.name === "TokenExpiredError") {
+                return res.status(401).send({ auth: false, expired: true, message: 'Token has expired.' });
+            }
+            return res.status(500).send({ auth: false, message: 'Failed to authenticate token.' });
+        }
+
+        // If everything is good, save to request for use in other routes
+        req.username = decoded.id;
+        next();
+    });
+};
+
+
 // Read
-app.post('/read', (req, res, next) => {
+app.post('/read', verifyToken, (req, res) => {
 
     const emp_ID = req.body.emp_ID;
     const page = req.body.page;
@@ -54,14 +78,14 @@ app.post('/read', (req, res, next) => {
     // Check which page to display; grabs option from front end then selects respective table
     switch (page) {
         case 'employeeinfo':
-            sql += `tbl_info`; //DONE
+            sql += `tbl_info`;
             break;
         case 'certification':
-            sql += `tbl_certification`; //DONE
+            sql += `tbl_certification`;
             expects_Array = true;
             break;
         case 'dependencies':
-            sql += `tbl_dependencies`; //WIP
+            sql += `tbl_dependencies`;
             expects_Array = true;
             break;
         case 'organizations':
@@ -69,10 +93,10 @@ app.post('/read', (req, res, next) => {
             expects_Array = true;
             break;
         case 'accountingdetails':
-            sql += `tbl_accounting_details`; //DONE
+            sql += `tbl_accounting_details`;
             break;
         case 'education':
-            sql += `tbl_education`; //DONE
+            sql += `tbl_education`;
             break;
         case 'teachingloads':
             sql += `tbl_teaching_loads`;
@@ -82,23 +106,25 @@ app.post('/read', (req, res, next) => {
             sql += `tbl_experience`;
             expects_Array = true;
             break;
-        case 'employeedetails': //DONE
+        case 'employeedetails':
             sql += `tbl_details`;
             break;
         case 'skills':
             sql += `tbl_skills`;
             expects_Array = true;
             break;
-        // Contact
-        case 'personalcontact': //DONE
+        case 'personalcontact':
             sql += `tbl_personal_contact`;
             break;
         case 'provincialcontact':
             sql += `tbl_provincial_contact`;
             expects_Array = true;
             break;
-        case 'emergency': //DONE
+        case 'emergency':
             sql += `tbl_emergency`;
+            break;
+        case 'loginDetails':
+            sql += `tbl_login`;
             break;
         default:
             console.log('Unknown Error');
@@ -124,7 +150,7 @@ app.post('/read', (req, res, next) => {
 
 // Read Item ID
 // This code is used for accessing an individual item of an array aka loopable component
-app.post('/readItem', (req, res) => {
+app.post('/readItem', verifyToken, (req, res) => {
 
     const item_ID = req.body.item_ID;
     const table_primary_key = req.body.table_primary_key;
@@ -173,51 +199,27 @@ app.post('/readItem', (req, res) => {
 });
 
 // Get All Employees, relevant for Admins
-app.get('/getAllEmployees/:department', (req, res) => {
+app.get('/getAllEmployees/:department', verifyToken, (req, res) => {
     const department = req.params.department;
-    departmentCheck = '' // Used for sql query
-
-    switch (department) {
-        case 'SBA':
-            departmentCheck = 'School of Business and Accountancy'
-            break;
-        case 'SEA':
-            departmentCheck = 'School of Engineering and Architecture'
-            break;
-        case 'SAS':
-            departmentCheck = 'School of Arts and Sciences'
-            break;
-        case 'SOE':
-            departmentCheck = 'School of Education'
-            break;
-        case 'SHTM':
-            departmentCheck = 'School of Hospitality and Tourism Management'
-            break;
-        case 'SNAMS':
-            departmentCheck = 'School of Nursing and Allied Medical Sciences'
-            break;
-        case 'SOC':
-            departmentCheck = 'School of Computing'
-            break;
-        case 'CCJF':
-            departmentCheck = 'College of Criminal Justice Education and Forsenics'
-            break;
-        default:
-            console.log('Unknown Error');
-    }
-
-
 
     var sql = `
         SELECT *
-        FROM tbl_login
+        FROM tbl_info
         WHERE emp_ID IN (
             SELECT emp_ID
-            FROM tbl_details `;
+            FROM tbl_details`;
 
-    if (department != "HRADMIN")
-        sql += `WHERE department='${departmentCheck}'`;
+    // Check if the user is not the super admin
+    // Not "All" means the user is not the super admin
+    // If it is, then return all users
+    if (department !== "All") {
+        console.log("Not the admin, setting department...");
+        sql += ` WHERE department='${department}'`;
+    }
+
     sql += `)`;
+
+    console.log(sql);
 
     db.query(sql, function (error, result) {
         if (error) {
@@ -229,21 +231,11 @@ app.get('/getAllEmployees/:department', (req, res) => {
     });
 });
 
-// Login
-app.post('/login', (req, res, next) => {
-    //res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
-    //res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
-
-    // Request headers you wish to allow
-    //res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
-
-    // Set to true if you need the website to include cookies in the requests sent
-    // to the API (e.g. in case you use sessions)
-    //res.setHeader('Access-Control-Allow-Credentials', true);
-    const emp_ID = req.body.emp_ID;
+app.post('/login', (req, res) => {
+    const username = req.body.username;
     const password = req.body.password;
 
-    var sql = `SELECT * FROM tbl_login WHERE emp_ID = '${emp_ID}' AND password = '${password}'`;
+    var sql = `SELECT * FROM tbl_login WHERE username = '${username}'`;
 
     db.query(sql, function (error, result) {
         if (error) {
@@ -253,7 +245,24 @@ app.post('/login', (req, res, next) => {
         } else {
             // Check if user is found
             if (result.length > 0) {
-                res.json({ message: "User Found" });
+                const hashedPassword = result[0].password;
+                // Compare hashed password with provided password
+                bcrypt.compare(password, hashedPassword, function (err, passwordMatch) {
+                    if (err) {
+                        console.log("Error:", err);
+                        res.status(500).send("Error comparing passwords");
+                    } else if (passwordMatch) {
+                        // Passwords match, user is authenticated
+
+                        // Generate JWT token
+                        const token = jwt.sign({ username: username }, JWT_SECRET, { expiresIn: '10m' });
+                        console.log(`token: ${token}`);
+                        res.json({ emp_ID: result[0].emp_ID, token });
+                    } else {
+                        // Passwords don't match
+                        res.status(401).send("Incorrect password");
+                    }
+                });
             } else {
                 // Handle case where user is not found
                 res.status(404).send("User not found");
@@ -263,7 +272,7 @@ app.post('/login', (req, res, next) => {
 });
 
 // Update or Add Values
-app.put('/update', (req, res) => {
+app.put('/update', verifyToken, (req, res) => {
     const updateBody = req.body;
 
     // Code relevant to commas in sql query
@@ -285,6 +294,7 @@ app.put('/update', (req, res) => {
             if (key === 'emp_ID') {
                 continue;
             }
+
             const value = updateBody[key];
             sql += `${key} = `
 
@@ -319,7 +329,7 @@ app.put('/update', (req, res) => {
 })
 
 // Update or Add Values, this one is relevant for one-to-many
-app.put('/updateItem', (req, res) => {
+app.put('/updateItem', verifyToken, (req, res) => {
     const updateBody = req.body;
     const table_primary_key = req.body.table_primary_key;
 
@@ -406,7 +416,7 @@ app.put('/updateItem', (req, res) => {
 })
 
 // Delete Values
-app.put('/delete', (req, res) => {
+app.put('/delete', verifyToken, (req, res) => {
     const updateBody = req.body;
 
     // Code relevant to commas in sql query
@@ -458,7 +468,7 @@ app.put('/delete', (req, res) => {
 
 // Delete Item
 // This code is used for deleting an individual item of an array aka loopable component
-app.post('/deleteItem', (req, res) => {
+app.post('/deleteItem', verifyToken, (req, res) => {
     const item_ID = req.body.item_ID;
     const table_primary_key = req.body.table_primary_key;
     const updateBody = req.body;
@@ -537,6 +547,7 @@ app.post('/upload', async (req, res, next) => {
             });
             const downloadLink = fileMetadata.data.webViewLink;
 
+
             res.json({
                 downloadLink: downloadLink,
                 fileID: fileID
@@ -549,7 +560,7 @@ app.post('/upload', async (req, res, next) => {
 });
 
 // Deleting files from Google Drive
-app.post('/deleteCertification', async (req, res) => {
+app.post('/deleteCertification', verifyToken, async (req, res) => {
     try {
         const fileId = req.body.attachment_ID; // Assuming fileId is sent in the request body
         console.log(`file ID to delete: ${fileId}`);
@@ -579,7 +590,117 @@ app.post('/deleteCertification', async (req, res) => {
     }
 });
 
+app.post('/createUser', verifyToken, (req, res) => {
+    const username = req.body.username;
+    const password = req.body.password;
+    const role = req.body.role;
+
+    const list_of_tables = [
+        "tbl_accounting_details",
+        "tbl_certification",
+        "tbl_details",
+        "tbl_education",
+        "tbl_emergency",
+        "tbl_personal_contact"
+    ];
+
+    let emp_ID = 0;
+
+    // Check first if username already exists
+    const sql_UsernameExistsCheck = `
+        SELECT username
+        FROM tbl_login
+        WHERE username = "${username}"
+    `
+    db.query(sql_UsernameExistsCheck, function (error, result) {
+        if (error) {
+            console.log("Error:", error);
+            return res.status(500).json({ error: "An error occurred while creating user." });
+        } else {
+            if (result.length > 0) {
+                return res.status(200).json({
+                    userExists: true,
+                    message: "Username already exists."
+                });
+            }
+            else if (result.length === 0) {
+                bcrypt.hash(password, saltRounds, function (err, hash) {
+                    if (err) {
+                        console.log("Error:", err);
+                        return res.status(500).json({ error: "An error occurred while hashing password." });
+                    }
+                    // Insert into tbl_login
+                    const sql_tbl_login = `INSERT INTO tbl_login (username, password) VALUES ("${username}", "${hash}")`;
+                    db.query(sql_tbl_login, function (error, result) {
+                        if (error) {
+                            console.log("Error:", error);
+                            return res.status(500).json({ error: "An error occurred while creating user." });
+                        } else {
+                            emp_ID = result.insertId; // Assuming emp_ID is auto-generated and you want to use it
+                            console.log("emp_ID:", emp_ID);
+
+                            // Insert into tbl_info
+                            const sql_tbl_info = `INSERT INTO tbl_info (emp_ID, emp_name, role) VALUES (${emp_ID}, "NewUser", "${role}")`;
+                            db.query(sql_tbl_info, function (error, result) {
+                                if (error) {
+                                    console.log("Error:", error);
+                                    return res.status(500).json({ error: "An error occurred while creating user." });
+                                } else {
+                                    // Insert into other tables
+                                    for (const table of list_of_tables) {
+                                        const sql_tbl = `INSERT INTO ${table} (emp_ID) VALUES (${emp_ID})`;
+
+                                        console.log(sql_tbl)
+                                        db.query(sql_tbl, function (error, result) {
+                                            if (error) {
+                                                console.log("Error:", error);
+                                                return res.status(500).json({ error: "An error occurred while creating user." });
+                                            }
+                                        });
+                                    }
+                                    // Sending success response back to Angular app
+                                    return res.status(200).json({ message: "User created successfully." });
+                                }
+                            });
+                        }
+                    });
+                });
+            }
+        }
+    });
+
+});
+
+app.post('/updateUser', verifyToken, (req, res) => {
+    const emp_ID = req.body.emp_ID;
+    const password = req.body.password;
+
+
+    bcrypt.hash(password, saltRounds, function (err, hash) {
+        if (err) {
+            console.log("Error:", err);
+            return res.status(500).json({ error: "An error occurred while hashing password." });
+        }
+        // Update username and password
+        const sql_updateUser = `
+                UPDATE tbl_login
+                SET password = "${hash}"
+                WHERE emp_ID = ${emp_ID}
+                `;
+        console.log(sql_updateUser);
+        db.query(sql_updateUser, function (error, result) {
+            if (error) {
+                console.log("Error:", error);
+                return res.status(500).json({ error: "An error occurred while updating user." });
+            } else {
+                return res.status(200).json({ message: "User updated successfully." });
+            }
+        });
+    });
+
+});
+
 
 app.listen(port, () => {
-    console.log(`Server is running on http://localhost:${port}`);
+    console.log(`Server is running on profilingdatabase.c70w002qw0l1.us-east-1.rds.amazonaws.com:${port}`);
 });
