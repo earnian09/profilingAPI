@@ -2,7 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 
 const app = express(); // Runs the server
-const port =  3000;
+const port = 3000;
 const mysql = require('mysql2'); // Connects to the database
 const { filter } = require('rxjs');
 const { log } = require('@angular-devkit/build-angular/src/builders/ssr-dev-server');
@@ -12,20 +12,30 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+
 // Security
 const cors = require('cors');
 const bcrypt = require('bcrypt');
-const saltRounds = 10; 
-const crypto = require('crypto'); 
+const saltRounds = 10; // Number of salt rounds to use
+const crypto = require('crypto'); // used to random generate jwt secret
 const jwt = require('jsonwebtoken');
 const JWT_SECRET = crypto.randomBytes(64).toString('hex');
-
 
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 app.use(cors())
+
+
+// app.use(cors({
+//     origin: 'https://eployeeprofilinghub.com', // use your actual domain name (or localhost), using * is not recommended
+//     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'],
+//     allowedHeaders: ['Content-Type', 'Origin', 'X-Requested-With', 'Accept', 'x-client-key', 'x-client-token', 'x-client-secret', 'Authorization', 'Access-Control-Allow-Origin'],
+//     credentials: true
+// }))
+// app.options('*, cors()')
+
 
 const db = mysql.createConnection({
     host: 'profilingdatabase.c70w002qw0l1.us-east-1.rds.amazonaws.com',
@@ -232,6 +242,7 @@ app.get('/getAllEmployees/:department', verifyToken, (req, res) => {
 });
 
 app.post('/login', (req, res) => {
+    res.set('Access-Control-Allow-Origin');
     const username = req.body.username;
     const password = req.body.password;
 
@@ -255,7 +266,7 @@ app.post('/login', (req, res) => {
                         // Passwords match, user is authenticated
 
                         // Generate JWT token
-                        const token = jwt.sign({ username: username }, JWT_SECRET, { expiresIn: '10m' });
+                        const token = jwt.sign({ username: username }, JWT_SECRET, { expiresIn: '1h' });
                         console.log(`token: ${token}`);
                         res.json({ emp_ID: result[0].emp_ID, token });
                     } else {
@@ -317,8 +328,17 @@ app.put('/update', verifyToken, (req, res) => {
     db.query(sql, function (error, result) {
         if (error) {
             console.log("Error:", error);
-            // Handle database errors
-            res.status(500).send("Error Updating");
+            if (error.code === 'ER_DUP_ENTRY' && error.errno === 1062) {
+                // Handle duplicate entry error
+                res.status(400).json({
+                    error: "Duplicate entry error occurred",
+                    code: error.code,
+                    errno: error.errno
+                });
+            } else {
+                // Handle other database errors
+                res.status(500).send("Error Updating");
+            }
         } else {
             console.log(`Updating of ${updateBody.tbl} Success`);
             res.json({ message: `Updating of ${updateBody.tbl} Success` });
@@ -594,6 +614,7 @@ app.post('/createUser', verifyToken, (req, res) => {
     const username = req.body.username;
     const password = req.body.password;
     const role = req.body.role;
+    const department = req.body.department;
 
     const list_of_tables = [
         "tbl_accounting_details",
@@ -648,7 +669,16 @@ app.post('/createUser', verifyToken, (req, res) => {
                                 } else {
                                     // Insert into other tables
                                     for (const table of list_of_tables) {
-                                        const sql_tbl = `INSERT INTO ${table} (emp_ID) VALUES (${emp_ID})`;
+                                        let sql_tbl = '';
+
+                                        // Logic to check if the user is admin_Department. Will apply a department as such.
+                                        if (table == "tbl_details") {
+                                            sql_tbl = `INSERT INTO ${table} (emp_ID, department) VALUES (${emp_ID}, '${department}')`;
+                                        }
+                                        else {
+                                            sql_tbl = `INSERT INTO ${table} (emp_ID) VALUES (${emp_ID})`;
+                                        }
+
 
                                         console.log(sql_tbl)
                                         db.query(sql_tbl, function (error, result) {
@@ -700,6 +730,24 @@ app.post('/updateUser', verifyToken, (req, res) => {
 
 });
 
+// Get already taken departments (for admin_Department purposes)
+app.get('/getExistingDepAdmins', verifyToken, (req, res) => {
+    const sql = ` SELECT d.department
+            FROM tbl_details d
+            INNER JOIN tbl_info i ON d.emp_ID = i.emp_ID
+            WHERE i.role = 'admin_Department';
+            `;
+
+    db.query(sql, function (error, result) {
+        if (error) {
+            console.log("Error:", error);
+            return res.status(500).json({ error: "An error occurred while getting departments." });
+        } else {
+            const departments = result.map(row => row.department); // Extracting only department names
+            res.send(departments);
+        }
+    });
+})
 
 app.listen(port, () => {
     console.log(`Server is running on profilingdatabase.c70w002qw0l1.us-east-1.rds.amazonaws.com:${port}`);
