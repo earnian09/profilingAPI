@@ -12,7 +12,6 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-
 // Security
 const cors = require('cors');
 const bcrypt = require('bcrypt');
@@ -38,11 +37,17 @@ app.use(cors())
 
 
 const db = mysql.createConnection({
-    host: 'profilingdatabase.c70w002qw0l1.us-east-1.rds.amazonaws.com',
-    user: 'admin',
-    password: 'testing123',
-    database: 'profiling',
-});
+        host: 'profilingdatabase.c70w002qw0l1.us-east-1.rds.amazonaws.com',
+        user: 'admin',
+        password: 'testing123',
+        database: 'profiling',
+    });
+// const db = mysql.createConnection({
+//     host: 'profilingdatabase.c70w002qw0l1.us-east-1.rds.amazonaws.com',
+//     user: 'admin',
+//     password: 'testing123',
+//     database: 'profiling',
+// });
 
 
 db.connect((err) => { // Function that connects to the database
@@ -155,6 +160,58 @@ app.post('/read', verifyToken, (req, res) => {
                 res.send(result);
             }
         }
+    });
+});
+
+// Read All Tables
+app.post('/readAllTables', verifyToken, (req, res) => {
+
+    const emp_ID = req.body.emp_ID;
+
+    tables = [
+        "tbl_info",
+        "tbl_certification",
+        "tbl_dependencies",
+        "tbl_org",
+        "tbl_accounting_details",
+        "tbl_education",
+        "tbl_teaching_loads",
+        "tbl_experience",
+        "tbl_details",
+        "tbl_skills",
+        "tbl_personal_contact",
+        "tbl_provincial_contact",
+        "tbl_emergency",
+    ]
+
+    var resultData = {}; // Object to store results with table names as keys
+
+    // Loop through tables array
+    tables.forEach(function (table) {
+        var expects_Array = ["tbl_dependencies", "tbl_org", "tbl_certification", "tbl_skills",
+            "tbl_teaching_loads", "tbl_experience", "tbl_provincial_contact"].includes(table);
+        var sql = `SELECT * FROM ${table} WHERE emp_ID = ${emp_ID}`;
+
+        db.query(sql, function (error, result) {
+            if (error) {
+                console.log(`Error querying ${table}:`, error);
+                res.status(500).send("Internal Server Error");
+            } else {
+                if (expects_Array === false) {
+                    // If the display only needs one entry
+                    resultData[table] = result[0];
+                } else if (expects_Array === true) {
+                    // If the display needs multiple entries, loopable
+                    resultData[table] = result;
+                }
+
+                // Check if all tables have been queried
+                if (Object.keys(resultData).length === tables.length) {
+                    // Send the resultData object as a JSON response
+                    res.json(resultData);
+                }
+            }
+        });
     });
 });
 
@@ -748,6 +805,42 @@ app.get('/getExistingDepAdmins', verifyToken, (req, res) => {
         }
     });
 })
+
+app.post('/deleteUser', verifyToken, (req, res) => {
+    const emp_ID = req.body.emp_ID;
+    const list_of_tables = [
+        "tbl_accounting_details",
+        "tbl_certification",
+        "tbl_dependencies",
+        "tbl_details",
+        "tbl_education",
+        "tbl_emergency",
+        "tbl_experience",
+        "tbl_info",
+        "tbl_login",
+        "tbl_org",
+        "tbl_personal_contact",
+        "tbl_provincial_contact",
+        "tbl_skills",
+        "tbl_teaching_loads",
+    ];
+
+    var tableNum = 0;
+
+    list_of_tables.forEach(function (table) {
+        tableNum += 1;
+        sql = `DELETE FROM ${table} WHERE emp_ID = ${emp_ID};`
+        console.log(sql);
+
+        db.query(sql);
+
+        if (tableNum === list_of_tables.length) {
+            // Send the resultData object as a JSON response
+            console.log(`${table}. reached the end, ending...`)
+            return res.status(200).json({ message: "User deleted." });
+        }
+    })
+});
 
 app.listen(port, () => {
     console.log(`Server is running on profilingdatabase.c70w002qw0l1.us-east-1.rds.amazonaws.com:${port}`);
