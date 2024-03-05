@@ -37,11 +37,11 @@ app.use(cors())
 
 
 const db = mysql.createConnection({
-        host: 'profilingdatabase.c70w002qw0l1.us-east-1.rds.amazonaws.com',
-        user: 'admin',
-        password: 'testing123',
-        database: 'profiling',
-    });
+    host: 'profilingdatabase.c70w002qw0l1.us-east-1.rds.amazonaws.com',
+    user: 'admin',
+    password: 'testing123',
+    database: 'profiling',
+});
 // const db = mysql.createConnection({
 //     host: 'profilingdatabase.c70w002qw0l1.us-east-1.rds.amazonaws.com',
 //     user: 'admin',
@@ -718,7 +718,7 @@ app.post('/createUser', verifyToken, (req, res) => {
                             console.log("emp_ID:", emp_ID);
 
                             // Insert into tbl_info
-                            const sql_tbl_info = `INSERT INTO tbl_info (emp_ID, emp_name, role) VALUES (${emp_ID}, "NewUser", "${role}")`;
+                            const sql_tbl_info = `INSERT INTO tbl_info (emp_ID, emp_name, role) VALUES (${emp_ID}, "${username}", "${role}")`;
                             db.query(sql_tbl_info, function (error, result) {
                                 if (error) {
                                     console.log("Error:", error);
