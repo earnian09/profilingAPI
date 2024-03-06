@@ -36,18 +36,18 @@ app.use(cors())
 // app.options('*, cors()')
 
 
+// const db = mysql.createConnection({
+//     host: 'localhost',
+//     user: 'root',
+//     password: '',
+//     database: 'profiling',
+// });
 const db = mysql.createConnection({
     host: 'profilingdatabase.c70w002qw0l1.us-east-1.rds.amazonaws.com',
     user: 'admin',
     password: 'testing123',
     database: 'profiling',
 });
-// const db = mysql.createConnection({
-//     host: 'profilingdatabase.c70w002qw0l1.us-east-1.rds.amazonaws.com',
-//     user: 'admin',
-//     password: 'testing123',
-//     database: 'profiling',
-// });
 
 
 db.connect((err) => { // Function that connects to the database
@@ -577,6 +577,7 @@ const storage = multer.diskStorage({
 })
 
 const upload = multer({ storage: storage }).single('file'); // Change to single file upload
+const imgUpload = multer({ dest: 'uploads/' });
 
 // Uploading files to Google Drive
 app.post('/upload', async (req, res, next) => {
@@ -635,6 +636,36 @@ app.post('/upload', async (req, res, next) => {
         res.status(500).json({ error: 'Server error' });
     }
 });
+
+// Upload profile picture
+app.post('/upload_ProfilePicture', imgUpload.single('image'), (req, res) => {
+    // Access uploaded file via req.file
+    const image = req.file;
+    const emp_ID = req.body.emp_ID;
+
+    if (!image) {
+        res.status(400).send('No file uploaded');
+        return;
+    }
+
+    // Read the image data from the file
+    const imageData = fs.readFileSync(image.path);
+
+    // Update the image data for the specified employee ID
+    const sql = 'UPDATE tbl_info SET profilePicture = ? WHERE emp_ID = ?';
+    db.query(sql, [imageData, emp_ID], (error, results) => {
+        if (error) {
+            console.error('Error updating image data:', error);
+            res.status(500).send('Error updating image data');
+            return;
+        }
+        console.log('Image data updated for employee ID:', emp_ID);
+        res.status(200).json({ message: 'Image data updated successfully' });
+
+    });
+});
+
+
 
 // Deleting files from Google Drive
 app.post('/deleteCertification', verifyToken, async (req, res) => {
