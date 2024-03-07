@@ -270,10 +270,11 @@ app.get('/getAllEmployees/:department', verifyToken, (req, res) => {
     const department = req.params.department;
 
     var sql = `
-        SELECT *
+        SELECT tbl_info.*, tbl_details.department
         FROM tbl_info
-        WHERE emp_ID IN (
-            SELECT emp_ID
+        JOIN tbl_details ON tbl_info.emp_ID = tbl_details.emp_ID
+        WHERE tbl_info.emp_ID IN (
+            SELECT tbl_details.emp_ID
             FROM tbl_details`;
 
     // Check if the user is not the super admin
@@ -285,8 +286,6 @@ app.get('/getAllEmployees/:department', verifyToken, (req, res) => {
     }
 
     sql += `)`;
-
-    console.log(sql);
 
     db.query(sql, function (error, result) {
         if (error) {
@@ -370,6 +369,9 @@ app.put('/update', verifyToken, (req, res) => {
                 sql += `'${value}'`
             } else if (typeof value === 'number' && Number.isInteger(value)) {
                 sql += `${value}`
+            }
+            else if (!value) {
+                sql += `null`
             }
             // Code to check if its the last value, if it is, then no comma
             if (currentKeyIndex < keyCount) {
