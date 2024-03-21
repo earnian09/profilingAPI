@@ -50,13 +50,27 @@ const db = mysql.createConnection({
 });
 
 
-db.connect((err) => { // Function that connects to the database
-    if (err) {
-        console.error('Error connecting to MySQL database:', err);
-        return;
-    }
-    console.log('Connected to MySQL database');
-});
+function handleDisconnect() {
+    db.connect((err) => {
+        if (err) {
+            console.error('Error connecting to MySQL database:', err);
+            setTimeout(handleDisconnect, 2000); // Retry connection after 2 seconds
+        } else {
+            console.log('Connected to MySQL database');
+        }
+    });
+
+    db.on('error', (err) => {
+        console.error('Database error:', err);
+        if (err.code === 'PROTOCOL_CONNECTION_LOST') {
+            console.log('Reconnecting to the database...');
+            handleDisconnect(); // Reconnect if connection is lost
+        } else {
+            throw err;
+        }
+    });
+}
+handleDisconnect();
 
 const verifyToken = (req, res, next) => {
     const token = req.headers.authorization;
@@ -163,13 +177,15 @@ app.post('/read', verifyToken, (req, res) => {
     });
 });
 
-// Read All Tables
+// Read All Tables, used for exporting
 app.post('/readAllTables', verifyToken, (req, res) => {
 
     const emp_ID = req.body.emp_ID;
+    const mode = req.body.mode;
+    const department = req.body.department;
 
     tables = [
-        "tbl_info",
+        "tbl_info", 
         "tbl_certification",
         "tbl_dependencies",
         "tbl_org",
@@ -190,18 +206,36 @@ app.post('/readAllTables', verifyToken, (req, res) => {
     tables.forEach(function (table) {
         var expects_Array = ["tbl_dependencies", "tbl_org", "tbl_certification", "tbl_skills",
             "tbl_teaching_loads", "tbl_experience", "tbl_provincial_contact"].includes(table);
-        var sql = `SELECT * FROM ${table} WHERE emp_ID = ${emp_ID}`;
+
+        var sql = `SELECT * FROM ${table}`;
+
+        if (department != "not_department") {
+            sql += ` WHERE emp_ID IN 
+            (SELECT emp_ID FROM tbl_details WHERE department = '${department}')`;
+        }
+
+        // Single mode is for one user to be exported
+        if (mode == "single") {
+            sql += ` WHERE emp_ID = ${emp_ID}`;
+        }
 
         db.query(sql, function (error, result) {
             if (error) {
                 console.log(`Error querying ${table}:`, error);
                 res.status(500).send("Internal Server Error");
             } else {
-                if (expects_Array === false) {
-                    // If the display only needs one entry
-                    resultData[table] = result[0];
-                } else if (expects_Array === true) {
-                    // If the display needs multiple entries, loopable
+                // Single mode is for one user to be exported
+                if (mode == "single") {
+                    if (expects_Array === false) {
+                        // If the display only needs one entry
+                        resultData[table] = result[0];
+                    } else if (expects_Array === true) {
+                        // If the display needs multiple entries, loopable
+                        resultData[table] = result;
+                    }
+                }
+                // Multiple mode is for multiple users to be exported
+                else if (mode == "multiple") {
                     resultData[table] = result;
                 }
 
