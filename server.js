@@ -104,6 +104,7 @@ app.post('/read', verifyToken, (req, res) => {
     expects_Array = false;
 
     var sql = 'SELECT * FROM ';
+    console.log(sql);
     // Check which page to display; grabs option from front end then selects respective table
     switch (page) {
         case 'employeeinfo':
@@ -158,6 +159,8 @@ app.post('/read', verifyToken, (req, res) => {
         default:
             console.log('Unknown Error');
     }
+    console.log(expects_Array);
+    console.log(sql);
     sql += ` WHERE emp_ID = ${emp_ID}`
 
     console.log(Date());
