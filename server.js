@@ -36,18 +36,18 @@ app.use(cors())
 // app.options('*, cors()')
 
 
-// const db = mysql.createConnection({
-//     host: 'localhost',
-//     user: 'root',
-//     password: '',
-//     database: 'profiling',
-// });
-const db = mysql.createConnection({
-    host: 'profilingdatabase.c70w002qw0l1.us-east-1.rds.amazonaws.com',
-    user: 'admin',
-    password: 'testing123',
-    database: 'profiling',
-});
+//const db = mysql.createConnection({
+//    host: 'localhost',
+//    user: 'root',
+//    password: '',
+//    database: 'profiling',
+//});
+ const db = mysql.createConnection({
+     host: 'profilingdatabase.c70w002qw0l1.us-east-1.rds.amazonaws.com',
+     user: 'admin',
+     password: 'testing123',
+     database: 'profiling',
+ });
 
 
 function handleDisconnect() {
@@ -160,16 +160,27 @@ app.post('/read', verifyToken, (req, res) => {
     }
     sql += ` WHERE emp_ID = ${emp_ID}`
 
+    console.log(Date());
+    console.log(sql);
+
     db.query(sql, function (error, result) {
+        console.log(Date());
+        console.log("Executing sql...");
         if (error) {
             console.log("Error:", error);
             res.status(500).send("Internal Server Error");
         } else {
             if (expects_Array == false) {
+                console.log(Date());
+                console.log("One-to-One Relationship detected...");
+                console.log(result);
                 // if the display only needs one entry
                 res.send(result[0]);
             }
             else if (expects_Array == true) {
+                console.log(Date());
+                console.log("One-to-Many Relationship detected...");
+                console.log(result);
                 // if the display needs multiple entries, loopable
                 res.send(result);
             }
@@ -739,6 +750,7 @@ app.post('/createUser', verifyToken, (req, res) => {
     const password = req.body.password;
     const role = req.body.role;
     const department = req.body.department;
+    const emp_type = req.body.emp_type;
 
     const list_of_tables = [
         "tbl_accounting_details",
@@ -797,7 +809,7 @@ app.post('/createUser', verifyToken, (req, res) => {
 
                                         // Logic to check if the user is admin_Department. Will apply a department as such.
                                         if (table == "tbl_details") {
-                                            sql_tbl = `INSERT INTO ${table} (emp_ID, department) VALUES (${emp_ID}, '${department}')`;
+                                            sql_tbl = `INSERT INTO ${table} (emp_ID, department, emp_type) VALUES (${emp_ID}, '${department}', '${emp_type}')`;
                                         }
                                         else {
                                             sql_tbl = `INSERT INTO ${table} (emp_ID) VALUES (${emp_ID})`;
