@@ -161,28 +161,16 @@ app.post('/read', verifyToken, (req, res) => {
     }
     sql += ` WHERE emp_ID = ${emp_ID}`
 
-    console.log(Date());
-    console.log(`${sql}`);
-    console.log(`${expects_Array}`);
-
     db.query(sql, function (error, result) {
-        console.log(Date());
-        console.log("Executing sql...");
         if (error) {
             console.log("Error:", error);
             res.status(500).send("Internal Server Error");
         } else {
             if (expects_Array == false) {
-                console.log(Date());
-                console.log("One-to-One Relationship detected...");
-                console.log(result);
                 // if the display only needs one entry
                 res.send(result[0]);
             }
             else if (expects_Array == true) {
-                console.log(Date());
-                console.log("One-to-Many Relationship detected...");
-                console.log(result);
                 // if the display needs multiple entries, loopable
                 res.send(result);
             }
