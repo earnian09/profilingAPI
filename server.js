@@ -50,6 +50,8 @@ const db = mysql.createConnection({
     user: 'admin',
     password: 'testing123',
     database: 'profiling',
+    acquireTimeout: 10000,
+    connectTimeout: 10000 
 });
 
 
