@@ -4,13 +4,15 @@ const bodyParser = require('body-parser');
 const app = express(); // Runs the server
 const port = 3000;
 const mysql = require('mysql2'); // Connects to the database
-const { filter } = require('rxjs');
-const { log } = require('@angular-devkit/build-angular/src/builders/ssr-dev-server');
 app.use(bodyParser.json());
 const { google } = require('googleapis');
 const multer = require('multer');
-const path = require('path');
 const fs = require('fs');
+
+// Node Emails
+const nodemailer = require('nodemailer');
+const node_Email = 'employeeprofilinghub@gmail.com';
+const node_Password = 'pyzy ehot fcjw amze';
 
 // Security
 const cors = require('cors');
@@ -24,6 +26,7 @@ const JWT_SECRET = crypto.randomBytes(64).toString('hex');
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
+
 app.use(cors())
 
 
@@ -36,19 +39,18 @@ app.use(cors())
 // app.options('*, cors()')
 
 
-//const db = mysql.createConnection({
-//    host: 'localhost',
-//    user: 'root',
-//    password: '',
-//    database: 'profiling',
-//});
- const db = mysql.createConnection({
-     host: 'profilingdatabase.c70w002qw0l1.us-east-1.rds.amazonaws.com',
-     user: 'admin',
-     password: 'testing123',
-     database: 'profiling',
- });
-
+// const db = mysql.createConnection({
+//     host: 'localhost',
+//     user: 'root',
+//     password: '',
+//     database: 'profiling',
+// });
+const db = mysql.createConnection({
+    host: 'profilingdatabase.c70w002qw0l1.us-east-1.rds.amazonaws.com',
+    user: 'admin',
+    password: 'testing123',
+    database: 'profiling',
+});
 
 
 function handleDisconnect() {
@@ -90,7 +92,7 @@ const verifyToken = (req, res, next) => {
         }
 
         // If everything is good, save to request for use in other routes
-        req.username = decoded.id;
+        req.username = decoded.username;
         next();
     });
 };
@@ -186,7 +188,7 @@ app.post('/readAllTables', verifyToken, (req, res) => {
     const department = req.body.department;
 
     tables = [
-        "tbl_info", 
+        "tbl_info",
         "tbl_certification",
         "tbl_dependencies",
         "tbl_org",
@@ -529,6 +531,126 @@ app.put('/updateItem', verifyToken, (req, res) => {
 
 })
 
+// Add Multiple Values, this one is relevant for one-to-many
+app.put('/addMultipleItems', verifyToken, (req, res) => {
+    let updateBody = req.body;
+
+    console.log(updateBody);
+
+    let items = req.body.items;
+
+    updateBody_Keys = { ...updateBody.items[0], ...updateBody }; // Used for the keys part in INSERT INTO ()
+    delete updateBody_Keys.items;
+    console.log(updateBody_Keys);
+
+    // Code relevant to commas in sql query
+    let keyCount = Object.keys(updateBody_Keys).length;
+    let currentKeyIndex = 0;
+
+    var sql = `INSERT INTO ${updateBody.tbl} (`
+
+
+    for (let key in updateBody_Keys) {
+        currentKeyIndex++;
+        // Skips declarations
+        if (key === 'tbl' || key === 'item_ID') {
+            continue;
+        }
+
+        sql += `${key}`
+        if (currentKeyIndex < keyCount) {
+            sql += ', ';
+        }
+    }
+
+    console.log(sql);
+    sql += ') VALUES ';
+    valueEntryIndex = 0;
+
+    // VALUES loop this itself -> (     )
+    for (let item of updateBody.items) {
+        valueEntryIndex++;
+        sql += '('
+
+        // VALUES ( *loop inside here* ) 
+        // Loop through the contents first
+        for (let key in item) {
+            sql += `'${item[key]}', `
+        }
+        othersIndex = 0;
+        // Then loop through the outside stuff (emp_ID, status and last_Updated), this will be the same for all value entry.
+        for (let key in updateBody) {
+            othersIndex++;
+            console.log(othersIndex);
+            console.log(Object.keys(updateBody).length);
+            // Skips declarations
+            if (key === 'tbl' || key === 'items') {
+                continue;
+            }
+            const value = updateBody[key];
+            sql += `'${value}'`
+            if (othersIndex < (Object.keys(updateBody).length)) {
+                sql += ', ';
+            }
+        }
+
+        sql += ')';
+
+        if (valueEntryIndex < items.length) {
+            sql += ', ';
+        }
+    }
+
+    console.log(sql);
+
+
+    db.query(sql, function (error, result) {
+        if (error) {
+            console.log("Error:", error);
+            // Handle database errors
+            res.status(500).send("Error Updating");
+        } else {
+            console.log(`Updating of ${updateBody.tbl} Success`);
+            res.json({
+                message: `Updating of ${updateBody.tbl} Success`
+            });
+        }
+    });
+
+})
+
+
+// Approve or Deny multiple items for batching purposes.
+app.put('/batchapproval', verifyToken, (req, res) => {
+    const selectedCerts = req.body.selectedCerts;
+    const status = req.body.status; // Approved or Denied
+    const approved_by = req.body.approved_by;
+    const approved_on = req.body.approved_on;
+
+    sql = `UPDATE tbl_certification
+    SET 
+        status = '${status}',
+        approved_by = '${approved_by}',
+        approved_on = '${approved_on}'
+    WHERE cert_ID IN (${selectedCerts});`
+
+    console.log(sql);
+
+    db.query(sql, function (error, result) {
+        if (error) {
+            console.log("Error:", error);
+            // Handle database errors
+            res.status(500).send("Error Updating");
+        } else {
+            console.log(`Updating of tbl_certification Success`);
+            res.json({
+                message: `Updating of tbl_certification Success`,
+            });
+        }
+    });
+
+})
+
 // Delete Values
 app.put('/delete', verifyToken, (req, res) => {
     const updateBody = req.body;
@@ -633,7 +755,7 @@ app.post('/upload', async (req, res, next) => {
             const file = req.file;
 
             const auth = new google.auth.GoogleAuth({
-                keyFile: "key.json",
+                keyFile: "src/key.json",
                 scopes: ['https://www.googleapis.com/auth/drive']
             })
 
@@ -715,7 +837,7 @@ app.post('/deleteCertification', verifyToken, async (req, res) => {
         }
 
         const auth = new google.auth.GoogleAuth({
-            keyFile: "key.json",
+            keyFile: "src/key.json",
             scopes: ['https://www.googleapis.com/auth/drive']
         })
 
@@ -741,6 +863,7 @@ app.post('/createUser', verifyToken, (req, res) => {
     const role = req.body.role;
     const department = req.body.department;
     const emp_type = req.body.emp_type;
+    const email_add = req.body.email_add;
 
     const list_of_tables = [
         "tbl_accounting_details",
@@ -753,24 +876,19 @@ app.post('/createUser', verifyToken, (req, res) => {
 
     let emp_ID = 0;
 
-    // Check first if username already exists
-    const sql_UsernameExistsCheck = `
-        SELECT username
-        FROM tbl_login
-        WHERE username = "${username}"
-    `
-    db.query(sql_UsernameExistsCheck, function (error, result) {
+    const sql_tbl_UsernameExists = `SELECT * from tbl_login WHERE username = '${username}'`;
+
+    db.query(sql_tbl_UsernameExists, function (error, result) {
         if (error) {
             console.log("Error:", error);
-            return res.status(500).json({ error: "An error occurred while creating user." });
+            return res.status(500).json({ error: "An error occurred while finding user." });
         } else {
+            // Detect if username exists
             if (result.length > 0) {
-                return res.status(200).json({
-                    userExists: true,
-                    message: "Username already exists."
-                });
+                return res.status(200).json({ exists: true });
             }
-            else if (result.length === 0) {
+            // If it does not exists...
+            else {
                 bcrypt.hash(password, saltRounds, function (err, hash) {
                     if (err) {
                         console.log("Error:", err);
@@ -785,7 +903,7 @@ app.post('/createUser', verifyToken, (req, res) => {
                         } else {
                             emp_ID = result.insertId; // Assuming emp_ID is auto-generated and you want to use it
                             console.log("emp_ID:", emp_ID);
-
+            
                             // Insert into tbl_info
                             const sql_tbl_info = `INSERT INTO tbl_info (emp_ID, emp_name, role) VALUES (${emp_ID}, "${username}", "${role}")`;
                             db.query(sql_tbl_info, function (error, result) {
@@ -796,16 +914,19 @@ app.post('/createUser', verifyToken, (req, res) => {
                                     // Insert into other tables
                                     for (const table of list_of_tables) {
                                         let sql_tbl = '';
-
+            
                                         // Logic to check if the user is admin_Department. Will apply a department as such.
                                         if (table == "tbl_details") {
                                             sql_tbl = `INSERT INTO ${table} (emp_ID, department, emp_type) VALUES (${emp_ID}, '${department}', '${emp_type}')`;
                                         }
+                                        else if (table == "tbl_personal_contact") {
+                                            sql_tbl = `INSERT INTO ${table} (emp_ID, email_add_1) VALUES (${emp_ID}, '${email_add}')`;
+                                        }
                                         else {
                                             sql_tbl = `INSERT INTO ${table} (emp_ID) VALUES (${emp_ID})`;
                                         }
-
-
+            
+            
                                         console.log(sql_tbl)
                                         db.query(sql_tbl, function (error, result) {
                                             if (error) {
@@ -825,6 +946,55 @@ app.post('/createUser', verifyToken, (req, res) => {
         }
     });
 
+    
+});
+
+
+app.post('/sendEmail_CreateAccount', verifyToken, (req, res) => {
+    // Extract credentials from the request body
+    const email = req.body.email;
+    const username = req.body.username;
+    const password = req.body.password;
+
+    // Create a transporter object using SMTP transport
+    let transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: node_Email,
+            pass: node_Password
+        }
+    });
+
+    // Email content
+    let mailOptions = {
+        from: node_Email,
+        to: email,
+        subject: 'Your Profile Hub Account',
+        text: `You have an account created for the Holy Angel University Employee Profiling Hub.
+        Please go to this link to login: employeeprofilinghub.com
+
+        To login, use the following credentials:
+        username: ${username}
+        password: ${password}`,
+        html: `<h3>You have an account created for the Holy Angel University Employee Profiling Hub.</h3>
+        <p> Please go to this <a href="employeeprofilinghub.com">link</a> to login.</p>
+        <h4>To login, use the following credentials:</h4>
+        <p>
+            username: ${username} <br />
+            password: ${password}
+        </p>`
+    };
+
+    // Send email
+    transporter.sendMail(mailOptions, function (error, info) {
+        if (error) {
+            console.error('Error occurred:', error);
+            res.status(500).json({ message: 'Error occurred while sending email.' });
+        } else {
+            console.log('Email sent successfully:', info.response);
+            res.status(200).json({ message: 'Email sent successfully.' });
+        }
+    });
 });
 
 app.post('/updateUser', verifyToken, (req, res) => {
@@ -910,6 +1080,119 @@ app.post('/deleteUser', verifyToken, (req, res) => {
         }
     })
 });
+
+// Used for forgot-password
+app.post('/findCredentials', (req, res) => {
+    const username = req.body.username;
+
+    var sql = `SELECT * FROM tbl_login WHERE username = '${username}'`
+    console.log(sql);
+
+    db.query(sql, function (error, result) {
+        if (error) {
+            console.log("Error:", error);
+            return res.status(500).json({ error: "An error occurred while finding user." });
+        } else {
+            if (result.length == 0) {
+                console.log("User not found.");
+                console.log(error);
+                return res.status(404).json({ message: "User not found." });
+            }
+            else {
+                emp_ID = result[0].emp_ID;
+                var emailsql = `SELECT * from tbl_personal_contact WHERE emp_ID = ${emp_ID}`;
+
+                db.query(emailsql, function (error, result_email) {
+                    if (error) {
+                        console.log("Error:", error);
+                        return res.status(500).json({ error: "An error occurred while finding email." });
+                    }
+                    else if (result_email.length == 0) {
+                        console.log("Email not found.");
+                        console.log(error);
+                        return res.status(404).json({ message: "Email not found." });
+                    }
+                    else {
+                        return res.send(result_email[0]);
+                    }
+                });
+            }
+        }
+    });
+});
+
+
+app.post('/sendEmail_ForgotPassword', (req, res) => {
+    // Extract credentials from the request body
+    const email = req.body.email;
+    const username = req.body.username;
+    const link = 'https://employeeprofilinghub.com';
+
+    // Create a transporter object using SMTP transport
+    let transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: node_Email,
+            pass: node_Password
+        }
+    });
+
+    // Token that the email will send as a confirmation, use this later
+    const token = jwt.sign({ username: username }, JWT_SECRET, { expiresIn: '1h' });
+
+    // Email content
+    let mailOptions = {
+        from: node_Email,
+        to: email,
+        subject: 'Password Reset Request',
+        text: `You have an requested to reset your password for your account ${username}.
+        Please go to this link to reset your password: ${link}/forgot-password/reset/${token}
+        This link will expire in one hour.`,
+        html: `<h3>You have an requested to reset your password for your account ${username}.</h3>
+        <p> Please go to this <a href="${link}/forgot-password/reset/${token}">link</a> to login.</p>
+        <p>This link will expire in one hour.</p>`
+    };
+
+    // Send email
+    transporter.sendMail(mailOptions, function (error, info) {
+        if (error) {
+            console.error('Error occurred:', error);
+            res.status(500).json({ message: 'Error occurred while sending email.' });
+        } else {
+            console.log('Email sent successfully:', info.response);
+            res.status(200).json({ message: 'Email sent successfully.' });
+        }
+    });
+});
+
+
+app.post('/forgot-password_reset', verifyToken, (req, res) => {
+
+    const username = req.username;
+    const password = req.body.password;
+
+    bcrypt.hash(password, saltRounds, function (err, hash) {
+        if (err) {
+            console.log("Error:", err);
+            return res.status(500).json({ error: "An error occurred while hashing password." });
+        }
+        sql = `UPDATE tbl_login SET password = '${hash}' WHERE username = '${username}'`
+
+        db.query(sql, function (error, result) {
+            if (error) {
+                console.log("Error:", error);
+                // Handle database errors
+                res.status(500).send("Error Resetting Password");
+            } else {
+                console.log(`Password Reset Success`);
+                res.json({
+                    message: `Password Reset Success`
+                });
+            }
+        });
+    });
+});
+
 
 app.listen(port, () => {
     console.log(`Server is running on profilingdatabase.c70w002qw0l1.us-east-1.rds.amazonaws.com:${port}`);
